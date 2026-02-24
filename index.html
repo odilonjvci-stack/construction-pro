@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Suivi Construction Pro</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
 <style>
 /* ===== Reset & fonts ===== */
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
@@ -60,22 +63,26 @@ body,html{height:100%;overflow-x:hidden;}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
 .header h2{color:#007BFF;}
 .header button{padding:10px 15px;border:none;border-radius:8px;background:red;color:#fff;cursor:pointer;margin-left:5px;}
+
 .projects-list, .expenses-list{margin-top:20px;}
 .project-card{background:#fff;padding:15px;margin-bottom:10px;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;}
 .project-card button{padding:6px 10px;border:none;border-radius:6px;background:#007BFF;color:#fff;margin-left:5px;cursor:pointer;}
 .project-card button.delete{background:red;}
-.add-project-container, .add-expense-container{margin-bottom:20px;display:flex;gap:10px;}
+
+.add-project-container, .add-expense-container{margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;}
 .add-project-container input, .add-expense-container input, .add-expense-container select{flex:1;padding:10px;border-radius:8px;border:1px solid #ccc;}
 .add-project-container button, .add-expense-container button{padding:10px 15px;border:none;border-radius:8px;background:#007BFF;color:#fff;cursor:pointer;}
 .add-project-container button:hover, .add-expense-container button:hover{transform:scale(1.03);}
-table{width:100%;border-collapse:collapse;margin-top:15px;}
+
+table{width:100%;border-collapse:collapse;margin-top:15px;background:#fff;}
 th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left;}
 th{background:#f5f5f5;color:#007BFF;}
+#totalsDiv{margin-top:15px;background:#fff;padding:15px;border-radius:10px;}
 </style>
 </head>
 <body>
 
-<!-- Slider fond d'écran -->
+<!-- Slider -->
 <div class="slider">
     <div class="slide"></div>
     <div class="slide"></div>
@@ -94,36 +101,31 @@ th{background:#f5f5f5;color:#007BFF;}
 <div class="dashboard" id="dashboard">
     <div class="header">
         <h2>Mes Projets</h2>
-        <div>
-            <button onclick="logout()">Déconnexion</button>
-        </div>
+        <button onclick="logout()">Déconnexion</button>
     </div>
+
     <div class="add-project-container">
         <input type="text" id="projectName" placeholder="Nom du projet">
         <button onclick="addProject()">Ajouter projet</button>
     </div>
-    <div class="projects-list" id="projectsList"></div>
+
+    <div id="projectsList"></div>
 </div>
 
 <script>
-/* ===== Connexion ADMIN simple ===== */
+/* ===== Connexion ===== */
 function login(){
-    const user=document.getElementById('username').value;
-    const pass=document.getElementById('password').value;
-    if(user==='ADMIN' && pass==='0990'){
-        document.getElementById('loginContainer').style.display='none';
-        document.getElementById('dashboard').style.display='block';
+    if(username.value==="ADMIN" && password.value==="0990"){
+        loginContainer.style.display="none";
+        dashboard.style.display="block";
         fetchProjects();
     } else {
-        alert('Identifiant ou mot de passe incorrect');
+        alert("Identifiants incorrects");
     }
 }
-function logout(){
-    document.getElementById('loginContainer').style.display='block';
-    document.getElementById('dashboard').style.display='none';
-}
+function logout(){location.reload();}
 
-/* ===== Firebase config ===== */
+/* ===== Firebase ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDHkaPEbLdn_mjfl0bgA0O1tYNY24eXloQ",
   authDomain: "construction-immo.firebaseapp.com",
@@ -137,215 +139,175 @@ const db=firebase.firestore();
 
 /* ===== Projets ===== */
 function addProject(){
-    const name=document.getElementById('projectName').value.trim();
-    if(name===''){alert('Veuillez saisir un nom de projet');return;}
-    db.collection('projets').add({
+    const name=projectName.value.trim();
+    if(!name){alert("Nom requis");return;}
+    db.collection("projets").add({
         nom:name,
         dateCreation:firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-        document.getElementById('projectName').value='';
-        fetchProjects();
-    }).catch(err=>console.error(err));
+    }).then(()=>{projectName.value="";fetchProjects();});
 }
 
 function fetchProjects(){
-    const list=document.getElementById('projectsList');
-    if(!list) return;
-    list.innerHTML='';
-    db.collection('projets').orderBy('dateCreation','desc').get()
-    .then(snapshot=>{
+    projectsList.innerHTML="";
+    db.collection("projets").get().then(snapshot=>{
         snapshot.forEach(doc=>{
             const data=doc.data();
-            const card=document.createElement('div');
-            card.classList.add('project-card');
-            card.innerHTML=`
+            const div=document.createElement("div");
+            div.className="project-card";
+            div.innerHTML=`
                 <span>${data.nom}</span>
                 <div>
                     <button onclick="openProject('${doc.id}','${data.nom}')">Voir</button>
                     <button class="delete" onclick="deleteProject('${doc.id}')">Supprimer</button>
                 </div>
             `;
-            list.appendChild(card);
+            projectsList.appendChild(div);
         });
     });
 }
 
 function deleteProject(id){
-    if(confirm('Voulez-vous vraiment supprimer ce projet et toutes ses dépenses ?')){
-        db.collection('depenses').where('projetId','==',id).get()
-        .then(snapshot=>{
-            snapshot.forEach(doc=>db.collection('depenses').doc(doc.id).delete());
-            db.collection('projets').doc(id).delete().then(fetchProjects);
-        });
+    if(confirm("Supprimer projet ?")){
+        db.collection("depenses").where("projetId","==",id).get()
+        .then(snap=>{snap.forEach(d=>db.collection("depenses").doc(d.id).delete());})
+        .then(()=>db.collection("projets").doc(id).delete().then(fetchProjects));
     }
 }
 
 /* ===== Détail projet ===== */
 function openProject(id,nom){
-    localStorage.setItem('currentProjectId',id);
-    localStorage.setItem('currentProjectName',nom);
+    localStorage.setItem("currentProjectId",id);
+    localStorage.setItem("currentProjectName",nom);
     showProjectDetail();
 }
 
 function showProjectDetail(){
-    const dashboard=document.getElementById('dashboard');
-    dashboard.innerHTML='';
+    const dashboard=document.getElementById("dashboard");
+    dashboard.innerHTML="";
 
-    const projetId=localStorage.getItem('currentProjectId');
-    const projetName=localStorage.getItem('currentProjectName');
+    const projetId=localStorage.getItem("currentProjectId");
+    const projetName=localStorage.getItem("currentProjectName");
 
-    const header=document.createElement('div');
-    header.classList.add('header');
-    header.innerHTML=`
-        <h2>Projet : ${projetName}</h2>
-        <div>
-            <button onclick="logout()">Déconnexion</button>
-            <button onclick="backToDashboard()">← Retour</button>
+    dashboard.innerHTML=`
+        <div class="header">
+            <h2>Projet : ${projetName}</h2>
+            <div>
+                <button onclick="logout()">Déconnexion</button>
+                <button onclick="backToDashboard()">← Retour</button>
+            </div>
         </div>
+
+        <div class="add-expense-container">
+            <select id="expenseStep">
+                <option value="">Sélectionner l'étape</option>
+                <option>FONDATION</option>
+                <option>ÉLÉVATION</option>
+                <option>DALLE</option>
+                <option>TOITURE</option>
+                <option>ÉLECTRICITÉ</option>
+                <option>PLOMBERIE</option>
+                <option>MENUISERIE</option>
+                <option>FINITION</option>
+            </select>
+            <input type="text" id="expenseDesc" placeholder="Description">
+            <input type="number" id="expenseAmount" placeholder="Montant">
+            <button onclick="addExpense()">Ajouter dépense</button>
+        </div>
+
+        <div style="margin-top:10px;">
+            <label>Filtrer par étape : </label>
+            <select id="filterStep" onchange="fetchExpenses()">
+                <option value="">Toutes</option>
+                <option>FONDATION</option>
+                <option>ÉLÉVATION</option>
+                <option>DALLE</option>
+                <option>TOITURE</option>
+                <option>ÉLECTRICITÉ</option>
+                <option>PLOMBERIE</option>
+                <option>MENUISERIE</option>
+                <option>FINITION</option>
+            </select>
+        </div>
+
+        <div class="expenses-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Étape</th><th>Description</th><th>Montant</th><th>Date</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="expensesTable"></tbody>
+            </table>
+        </div>
+
+        <div id="totalsDiv"></div>
     `;
-    dashboard.appendChild(header);
-
-    // Formulaire ajout dépense
-    const form=document.createElement('div');
-    form.classList.add('add-expense-container');
-    form.innerHTML=`
-        <select id="expenseStep">
-            <option value="">Sélectionner l'étape</option>
-            <option value="FONDATION">FONDATION</option>
-            <option value="ÉLÉVATION">ÉLÉVATION</option>
-            <option value="DALLE">DALLE</option>
-            <option value="TOITURE">TOITURE</option>
-            <option value="ÉLECTRICITÉ">ÉLECTRICITÉ</option>
-            <option value="PLOMBERIE">PLOMBERIE</option>
-            <option value="MENUISERIE">MENUISERIE</option>
-            <option value="FINITION">FINITION</option>
-        </select>
-        <input type="text" id="expenseDesc" placeholder="Description">
-        <input type="number" id="expenseAmount" placeholder="Montant">
-        <button onclick="addExpense()">Ajouter dépense</button>
-    `;
-    dashboard.appendChild(form);
-
-    // Filtre
-    const filterDiv=document.createElement('div');
-    filterDiv.style.marginTop='10px';
-    filterDiv.innerHTML=`
-        <label>Filtrer par étape : </label>
-        <select id="filterStep" onchange="fetchExpenses()">
-            <option value="">Toutes</option>
-            <option value="FONDATION">FONDATION</option>
-            <option value="ÉLÉVATION">ÉLÉVATION</option>
-            <option value="DALLE">DALLE</option>
-            <option value="TOITURE">TOITURE</option>
-            <option value="ÉLECTRICITÉ">ÉLECTRICITÉ</option>
-            <option value="PLOMBERIE">PLOMBERIE</option>
-            <option value="MENUISERIE">MENUISERIE</option>
-            <option value="FINITION">FINITION</option>
-        </select>
-    `;
-    dashboard.appendChild(filterDiv);
-
-    // Tableau dépenses
-    const tableDiv=document.createElement('div');
-    tableDiv.classList.add('expenses-list');
-    tableDiv.innerHTML=`<table id="expensesTable"><thead><tr>
-        <th>Étape</th><th>Description</th><th>Montant</th><th>Date</th><th>Actions</th>
-    </tr></thead><tbody></tbody></table>`;
-    dashboard.appendChild(tableDiv);
-
-    // Totaux
-    const totalDiv=document.createElement('div');
-    totalDiv.id='totalsDiv';
-    totalDiv.style.marginTop='15px';
-    dashboard.appendChild(totalDiv);
 
     fetchExpenses();
 }
 
 function backToDashboard(){
-    localStorage.removeItem('currentProjectId');
-    localStorage.removeItem('currentProjectName');
+    localStorage.removeItem("currentProjectId");
+    localStorage.removeItem("currentProjectName");
     location.reload();
 }
 
 /* ===== Dépenses ===== */
 function addExpense(){
-    const projetId=localStorage.getItem('currentProjectId');
-    const step=document.getElementById('expenseStep').value;
-    const desc=document.getElementById('expenseDesc').value.trim();
-    const amount=parseFloat(document.getElementById('expenseAmount').value);
-    if(!step || !desc || !amount){ alert('Veuillez remplir tous les champs'); return; }
-    db.collection('depenses').add({
-        projetId:projetId, etape:step, description:desc, montant:amount,
-        date:new Date().toISOString()
+    const projetId=localStorage.getItem("currentProjectId");
+    const step=document.getElementById("expenseStep").value;
+    const desc=document.getElementById("expenseDesc").value.trim();
+    const amount=parseFloat(document.getElementById("expenseAmount").value);
+    if(!step||!desc||!amount){alert("Remplir tous les champs");return;}
+    db.collection("depenses").add({
+        projetId:projetId,
+        etape:step,
+        description:desc,
+        montant:amount,
+        date:firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>{
-        document.getElementById('expenseDesc').value='';
-        document.getElementById('expenseAmount').value='';
+        document.getElementById("expenseDesc").value="";
+        document.getElementById("expenseAmount").value="";
         fetchExpenses();
     });
 }
 
-function editExpense(id,step,desc,amount){
-    document.getElementById('expenseStep').value=step;
-    document.getElementById('expenseDesc').value=desc;
-    document.getElementById('expenseAmount').value=amount;
-    const btn=document.querySelector('.add-expense-container button');
-    btn.textContent='Mettre à jour';
-    btn.onclick=function(){
-        db.collection('depenses').doc(id).update({
-            etape:document.getElementById('expenseStep').value,
-            description:document.getElementById('expenseDesc').value,
-            montant:parseFloat(document.getElementById('expenseAmount').value),
-            date:new Date().toISOString()
-        }).then(()=>{
-            btn.textContent='Ajouter dépense';
-            btn.onclick=addExpense;
-            document.getElementById('expenseDesc').value='';
-            document.getElementById('expenseAmount').value='';
-            fetchExpenses();
-        });
-    }
-}
-
-function deleteExpense(id){
-    if(confirm('Voulez-vous vraiment supprimer cette dépense ?')){
-        db.collection('depenses').doc(id).delete().then(fetchExpenses);
-    }
-}
+function deleteExpense(id){if(confirm("Supprimer cette dépense ?")){db.collection("depenses").doc(id).delete().then(fetchExpenses);}}
 
 function fetchExpenses(){
-    const projetId=localStorage.getItem('currentProjectId');
-    const filterStep=document.getElementById('filterStep').value;
-    const tbody=document.querySelector('#expensesTable tbody');
-    tbody.innerHTML='';
-    let query=db.collection('depenses').where('projetId','==',projetId).orderBy('date','desc');
-    if(filterStep) query=query.where('etape','==',filterStep);
+    const projetId=localStorage.getItem("currentProjectId");
+    const filterStep=document.getElementById("filterStep").value;
+    const tbody=document.getElementById("expensesTable");
+    tbody.innerHTML="";
+    let query=db.collection("depenses").where("projetId","==",projetId);
+    if(filterStep) query=query.where("etape","==",filterStep);
     query.get().then(snapshot=>{
-        const totals={}; let totalGeneral=0;
+        let totals={}; let totalGeneral=0;
         snapshot.forEach(doc=>{
             const data=doc.data();
-            const tr=document.createElement('tr');
-            const date=new Date(data.date).toLocaleDateString('fr-FR');
+            const date=data.date?data.date.toDate().toLocaleDateString("fr-FR"):"";
+            const tr=document.createElement("tr");
             tr.innerHTML=`
                 <td>${data.etape}</td>
                 <td>${data.description}</td>
                 <td>${data.montant.toLocaleString()} FCFA</td>
                 <td>${date}</td>
                 <td>
-                    <button onclick="editExpense('${doc.id}','${data.etape}','${data.description}',${data.montant})">✏</button>
-                    <button style="background:red;color:#fff;" onclick="deleteExpense('${doc.id}')">❌</button>
+                    <button onclick="deleteExpense('${doc.id}')">❌</button>
                 </td>
             `;
             tbody.appendChild(tr);
             totals[data.etape]=(totals[data.etape]||0)+data.montant;
             totalGeneral+=data.montant;
         });
-        const totalDiv=document.getElementById('totalsDiv');
-        totalDiv.innerHTML='<h3>Totaux par étape :</h3>';
+
+        const totalDiv=document.getElementById("totalsDiv");
+        totalDiv.innerHTML="<h3>Totaux par étape :</h3>";
         for(const etape in totals){totalDiv.innerHTML+=`<p><strong>${etape}</strong> : ${totals[etape].toLocaleString()} FCFA</p>`;}
         totalDiv.innerHTML+=`<h3>Total général : ${totalGeneral.toLocaleString()} FCFA</h3>`;
     });
 }
 </script>
+
 </body>
 </html>
